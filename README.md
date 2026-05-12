@@ -13,11 +13,12 @@ Unlike `ros2 topic info -v`, this tool tries to interpret the endpoint QoS data,
 From a ROS 2 workspace:
 
 ```bash
-cd ~/ros_ws/src
+cd ~/ros2_qos_doctor_ws/src
 git clone <repo-url> ros2-qos-doctor
-cd ~/ros_ws
+cd ~/ros2_qos_doctor_ws
+source /opt/ros/jazzy/setup.bash
 rosdep install --from-paths src --ignore-src -r -y
-colcon build --packages-select ros2_qos_doctor
+colcon build --symlink-install
 source install/setup.bash
 ```
 
@@ -40,6 +41,169 @@ Run tests:
 ```bash
 colcon test --packages-select ros2_qos_doctor
 colcon test-result --verbose
+```
+
+## Reproducible QoS Demos
+
+The `ros2_qos_doctor` package includes small Python example nodes that
+intentionally create QoS combinations for testing and documentation. Each demo
+uses `std_msgs/msg/String` and can be run with `ros2 run`.
+
+Use the nodes in these pairs:
+
+| Demo | Publisher | Subscriber | Topic | Expected |
+| --- | --- | --- | --- | --- |
+| Reliability mismatch | `best_effort_publisher` | `reliable_subscriber` | `/qos_demo/reliability` | Incompatible |
+| Reliability compatible | `reliable_publisher` | `best_effort_subscriber` | `/qos_demo/reliability_compatible` | Compatible |
+| Durability mismatch | `volatile_publisher` | `transient_local_subscriber` | `/qos_demo/durability` | Incompatible |
+| Durability compatible | `transient_local_publisher` | `volatile_subscriber` | `/qos_demo/durability_compatible` | Compatible |
+
+For example, `best_effort_publisher` and `best_effort_subscriber` are not a
+pair; they intentionally run on different topics for different demos.
+
+Build the workspace:
+
+```bash
+cd ~/ros2_qos_doctor_ws
+source /opt/ros/jazzy/setup.bash
+colcon build --symlink-install
+source install/setup.bash
+```
+
+### Reliability Mismatch
+
+This demo publishes with `BEST_EFFORT` reliability and subscribes with
+`RELIABLE` reliability. It is incompatible because the subscriber requests
+stronger delivery than the publisher offers.
+
+Terminal 1:
+
+```bash
+ros2 run ros2_qos_doctor best_effort_publisher
+```
+
+Terminal 2:
+
+```bash
+ros2 run ros2_qos_doctor reliable_subscriber
+```
+
+Terminal 3:
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor /qos_demo/reliability
+```
+
+Expected `ros2-qos-doctor` result:
+
+```text
+Compatibility:
+  Incompatible
+
+Problem:
+  Reliability mismatch. The subscriber requests RELIABLE delivery, but the publisher only offers BEST_EFFORT delivery.
+
+Suggested fix:
+  Set the subscriber reliability to BEST_EFFORT.
+```
+
+### Reliability Compatible
+
+This demo publishes with `RELIABLE` reliability and subscribes with
+`BEST_EFFORT` reliability. It is compatible because a `BEST_EFFORT` subscriber
+can communicate with a `RELIABLE` publisher.
+
+Terminal 1:
+
+```bash
+ros2 run ros2_qos_doctor reliable_publisher
+```
+
+Terminal 2:
+
+```bash
+ros2 run ros2_qos_doctor best_effort_subscriber
+```
+
+Terminal 3:
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor /qos_demo/reliability_compatible
+```
+
+Expected `ros2-qos-doctor` result:
+
+```text
+Compatibility:
+  Compatible
+```
+
+### Durability Mismatch
+
+This demo publishes with `VOLATILE` durability and subscribes with
+`TRANSIENT_LOCAL` durability. It is incompatible because the subscriber requests
+stored samples, but the publisher only offers volatile samples.
+
+Terminal 1:
+
+```bash
+ros2 run ros2_qos_doctor volatile_publisher
+```
+
+Terminal 2:
+
+```bash
+ros2 run ros2_qos_doctor transient_local_subscriber
+```
+
+Terminal 3:
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor /qos_demo/durability
+```
+
+Expected `ros2-qos-doctor` result:
+
+```text
+Compatibility:
+  Incompatible
+
+Problem:
+  Durability mismatch. The subscriber requests TRANSIENT_LOCAL durability, but the publisher only offers VOLATILE durability.
+
+Suggested fix:
+  Set the subscriber durability to VOLATILE.
+```
+
+### Durability Compatible
+
+This demo publishes with `TRANSIENT_LOCAL` durability and subscribes with
+`VOLATILE` durability. It is compatible because a `VOLATILE` subscriber can
+communicate with a `TRANSIENT_LOCAL` publisher.
+
+Terminal 1:
+
+```bash
+ros2 run ros2_qos_doctor transient_local_publisher
+```
+
+Terminal 2:
+
+```bash
+ros2 run ros2_qos_doctor volatile_subscriber
+```
+
+Terminal 3:
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor /qos_demo/durability_compatible
+```
+
+Expected `ros2-qos-doctor` result:
+
+```text
+Compatibility:
+  Compatible
 ```
 
 ## Example Output

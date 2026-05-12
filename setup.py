@@ -11,6 +11,7 @@ setup(
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml', 'LICENSE', 'README.md']),
         ('share/' + package_name + '/examples', glob('examples/*.yaml')),
+        ('share/' + package_name + '/examples', glob('examples/*.md')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -22,6 +23,26 @@ setup(
     entry_points={
         'console_scripts': [
             'qos_doctor = ros2_qos_doctor.qos_doctor:main',
+            (
+                'best_effort_publisher = '
+                'ros2_qos_doctor.examples.best_effort_publisher:main'
+            ),
+            'reliable_subscriber = ros2_qos_doctor.examples.reliable_subscriber:main',
+            'reliable_publisher = ros2_qos_doctor.examples.reliable_publisher:main',
+            (
+                'best_effort_subscriber = '
+                'ros2_qos_doctor.examples.best_effort_subscriber:main'
+            ),
+            'volatile_publisher = ros2_qos_doctor.examples.volatile_publisher:main',
+            (
+                'transient_local_subscriber = '
+                'ros2_qos_doctor.examples.transient_local_subscriber:main'
+            ),
+            (
+                'transient_local_publisher = '
+                'ros2_qos_doctor.examples.transient_local_publisher:main'
+            ),
+            'volatile_subscriber = ros2_qos_doctor.examples.volatile_subscriber:main',
         ],
     },
 )
