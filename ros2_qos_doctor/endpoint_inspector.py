@@ -4,7 +4,12 @@ from typing import Iterable, List, Sequence
 
 import rclpy
 
-from ros2_qos_doctor.compatibility import EndpointKind, EndpointQoS, normalize_policy
+from ros2_qos_doctor.compatibility import (
+    EndpointKind,
+    EndpointQoS,
+    duration_to_nanoseconds,
+    normalize_policy,
+)
 
 
 UNKNOWN_POLICY = 'unknown'
@@ -36,7 +41,12 @@ def endpoint_info_to_qos(endpoint_info: object, endpoint_kind: EndpointKind) -> 
         durability=normalize_policy(_field_value(profile, 'durability')),
         history=history,
         depth=_normalize_depth(history, depth),
+        deadline=duration_to_nanoseconds(_field_value(profile, 'deadline')),
+        lifespan=duration_to_nanoseconds(_field_value(profile, 'lifespan')),
         liveliness=None if liveliness == UNKNOWN_POLICY else liveliness,
+        liveliness_lease_duration=duration_to_nanoseconds(
+            _field_value(profile, 'liveliness_lease_duration')
+        ),
         endpoint_kind=endpoint_kind,
     )
 

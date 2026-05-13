@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from rclpy.duration import Duration
 from rclpy.qos import (
     DurabilityPolicy,
     HistoryPolicy,
@@ -43,7 +44,10 @@ def test_endpoint_info_to_qos_reads_jazzy_endpoint_fields_without_ros_graph():
             durability=DurabilityPolicy.VOLATILE,
             history=HistoryPolicy.KEEP_LAST,
             depth=5,
+            deadline=Duration(seconds=2),
+            lifespan=Duration(seconds=3),
             liveliness=LivelinessPolicy.AUTOMATIC,
+            liveliness_lease_duration=Duration(seconds=4),
         ),
     )
 
@@ -56,7 +60,10 @@ def test_endpoint_info_to_qos_reads_jazzy_endpoint_fields_without_ros_graph():
     assert qos.durability == 'volatile'
     assert qos.history == 'keep_last'
     assert qos.depth == 5
+    assert qos.deadline == 2_000_000_000
+    assert qos.lifespan == 3_000_000_000
     assert qos.liveliness == 'automatic'
+    assert qos.liveliness_lease_duration == 4_000_000_000
 
 
 class FakeNode:

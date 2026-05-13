@@ -19,10 +19,16 @@ def _endpoint_lines(endpoint: EndpointQoS) -> List[str]:
             f'    durability: {endpoint.durability}',
             f'    history: {endpoint.history}',
             f'    depth: {endpoint.depth if endpoint.depth is not None else "unknown"}',
+            f'    deadline: {_format_duration(endpoint.deadline)}',
+            f'    lifespan: {_format_duration(endpoint.lifespan)}',
         ]
     )
     if endpoint.liveliness:
         lines.append(f'    liveliness: {endpoint.liveliness}')
+    lines.append(
+        '    liveliness_lease_duration: '
+        f'{_format_duration(endpoint.liveliness_lease_duration)}'
+    )
     return lines
 
 
@@ -91,6 +97,12 @@ def _policy_value(value: str) -> str:
     return value.upper()
 
 
+def _format_duration(value: int | None) -> str:
+    if value in (None, 0):
+        return 'default'
+    return f'{value} ns'
+
+
 def _issue_detail_lines(issue: CompatibilityIssue) -> List[str]:
     if issue.policy == 'reliability':
         return [
@@ -114,6 +126,42 @@ def _issue_detail_lines(issue: CompatibilityIssue) -> List[str]:
             (
                 f'   Subscriber {issue.subscriber.full_node_name} requests '
                 f'{_policy_value(issue.subscriber.durability)}'
+            ),
+        ]
+    if issue.policy == 'deadline':
+        return [
+            '   Deadline mismatch:',
+            (
+                f'   Publisher {issue.publisher.full_node_name} offers '
+                f'{_format_duration(issue.publisher.deadline)}'
+            ),
+            (
+                f'   Subscriber {issue.subscriber.full_node_name} requests '
+                f'{_format_duration(issue.subscriber.deadline)}'
+            ),
+        ]
+    if issue.policy == 'liveliness':
+        return [
+            '   Liveliness mismatch:',
+            (
+                f'   Publisher {issue.publisher.full_node_name} offers '
+                f'{_policy_value(issue.publisher.liveliness or "unknown")}'
+            ),
+            (
+                f'   Subscriber {issue.subscriber.full_node_name} requests '
+                f'{_policy_value(issue.subscriber.liveliness or "unknown")}'
+            ),
+        ]
+    if issue.policy == 'liveliness_lease_duration':
+        return [
+            '   Liveliness lease duration mismatch:',
+            (
+                f'   Publisher {issue.publisher.full_node_name} offers '
+                f'{_format_duration(issue.publisher.liveliness_lease_duration)}'
+            ),
+            (
+                f'   Subscriber {issue.subscriber.full_node_name} requests '
+                f'{_format_duration(issue.subscriber.liveliness_lease_duration)}'
             ),
         ]
 

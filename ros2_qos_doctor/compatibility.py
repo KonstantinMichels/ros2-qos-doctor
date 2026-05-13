@@ -17,7 +17,10 @@ class EndpointQoS:
     durability: str = 'unknown'
     history: str = 'unknown'
     depth: Optional[int] = None
+    deadline: Optional[int] = None
+    lifespan: Optional[int] = None
     liveliness: Optional[str] = None
+    liveliness_lease_duration: Optional[int] = None
     endpoint_kind: Optional[EndpointKind] = None
 
     @property
@@ -47,8 +50,8 @@ class CompatibilityReport:
 class CompatibilityRule:
     policy: str
     is_incompatible: Callable[[EndpointQoS, EndpointQoS], bool]
-    message: str
-    suggested_fix: str
+    message: Callable[[EndpointQoS, EndpointQoS], str]
+    suggested_fix: Callable[[EndpointQoS, EndpointQoS], str]
 
 
 def normalize_policy(value: object) -> str:
@@ -71,6 +74,51 @@ def normalize_policy(value: object) -> str:
     return text
 
 
+def duration_to_nanoseconds(value: object) -> Optional[int]:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+
+    nanoseconds = getattr(value, 'nanoseconds', None)
+    if nanoseconds is not None:
+        return nanoseconds
+
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_default_duration(value: Optional[int]) -> bool:
+    return value in (None, 0)
+
+
+def _duration_is_incompatible(
+    publisher_value: Optional[int],
+    subscriber_value: Optional[int],
+) -> bool:
+    if _is_default_duration(subscriber_value):
+        return False
+    if _is_default_duration(publisher_value):
+        return True
+    return publisher_value > subscriber_value
+
+
+def _format_duration(value: Optional[int]) -> str:
+    if _is_default_duration(value):
+        return 'DEFAULT'
+    return f'{value} ns'
+
+
+def _constant_message(message: str) -> Callable[[EndpointQoS, EndpointQoS], str]:
+    return lambda _publisher, _subscriber: message
+
+
+def _constant_fix(fix: str) -> Callable[[EndpointQoS, EndpointQoS], str]:
+    return lambda _publisher, _subscriber: fix
+
+
 COMPATIBILITY_RULES = (
     CompatibilityRule(
         policy='reliability',
@@ -78,11 +126,11 @@ COMPATIBILITY_RULES = (
             publisher.reliability == 'best_effort'
             and subscriber.reliability == 'reliable'
         ),
-        message=(
+        message=_constant_message(
             'Reliability mismatch. The subscriber requests RELIABLE delivery, '
             'but the publisher only offers BEST_EFFORT delivery.'
         ),
-        suggested_fix='Set the subscriber reliability to BEST_EFFORT.',
+        suggested_fix=_constant_fix('Set the subscriber reliability to BEST_EFFORT.'),
     ),
     CompatibilityRule(
         policy='durability',
@@ -90,11 +138,58 @@ COMPATIBILITY_RULES = (
             publisher.durability == 'volatile'
             and subscriber.durability == 'transient_local'
         ),
-        message=(
+        message=_constant_message(
             'Durability mismatch. The subscriber requests TRANSIENT_LOCAL durability, '
             'but the publisher only offers VOLATILE durability.'
         ),
-        suggested_fix='Set the subscriber durability to VOLATILE.',
+        suggested_fix=_constant_fix('Set the subscriber durability to VOLATILE.'),
+    ),
+    CompatibilityRule(
+        policy='deadline',
+        is_incompatible=lambda publisher, subscriber: _duration_is_incompatible(
+            publisher.deadline,
+            subscriber.deadline,
+        ),
+        message=lambda publisher, subscriber: (
+            'Deadline mismatch. The subscriber requests a maximum interval of '
+            f'{_format_duration(subscriber.deadline)}, but the publisher only '
+            f'offers {_format_duration(publisher.deadline)}.'
+        ),
+        suggested_fix=lambda publisher, _subscriber: (
+            'Set the subscriber deadline to DEFAULT or at least '
+            f'{_format_duration(publisher.deadline)}.'
+        ),
+    ),
+    CompatibilityRule(
+        policy='liveliness',
+        is_incompatible=lambda publisher, subscriber: (
+            publisher.liveliness == 'automatic'
+            and subscriber.liveliness == 'manual_by_topic'
+        ),
+        message=_constant_message(
+            'Liveliness mismatch. The subscriber requests MANUAL_BY_TOPIC '
+            'liveliness, but the publisher only offers AUTOMATIC liveliness.'
+        ),
+        suggested_fix=_constant_fix(
+            'Set the subscriber liveliness to AUTOMATIC.'
+        ),
+    ),
+    CompatibilityRule(
+        policy='liveliness_lease_duration',
+        is_incompatible=lambda publisher, subscriber: _duration_is_incompatible(
+            publisher.liveliness_lease_duration,
+            subscriber.liveliness_lease_duration,
+        ),
+        message=lambda publisher, subscriber: (
+            'Liveliness lease duration mismatch. The subscriber requests a '
+            f'lease duration of {_format_duration(subscriber.liveliness_lease_duration)}, '
+            'but the publisher only offers '
+            f'{_format_duration(publisher.liveliness_lease_duration)}.'
+        ),
+        suggested_fix=lambda publisher, _subscriber: (
+            'Set the subscriber liveliness lease duration to DEFAULT or at least '
+            f'{_format_duration(publisher.liveliness_lease_duration)}.'
+        ),
     ),
 )
 
@@ -112,8 +207,8 @@ def check_pair_compatibility(
                     policy=rule.policy,
                     publisher=publisher,
                     subscriber=subscriber,
-                    message=rule.message,
-                    suggested_fix=rule.suggested_fix,
+                    message=rule.message(publisher, subscriber),
+                    suggested_fix=rule.suggested_fix(publisher, subscriber),
                 )
             )
 

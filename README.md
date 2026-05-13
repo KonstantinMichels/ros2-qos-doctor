@@ -327,14 +327,26 @@ rosbag2 override suggestion:
     depth: 100
 ```
 
-## MVP Scope
+## QoS Compatibility Scope
 
-The MVP checks the most common hard incompatibilities:
+The tool checks every explicit requested/offered compatibility table in the ROS
+2 Jazzy QoS documentation for these hard publisher/subscriber matching
+policies:
 
 - Reliability: `BEST_EFFORT` publisher with `RELIABLE` subscriber.
 - Durability: `VOLATILE` publisher with `TRANSIENT_LOCAL` subscriber.
+- Deadline: publisher offers a slower interval than the subscriber requests.
+- Liveliness: `AUTOMATIC` publisher with `MANUAL_BY_TOPIC` subscriber.
+- Liveliness lease duration: publisher offers a longer lease than the
+  subscriber requests.
 
-Other QoS policies are displayed but not yet interpreted.
+History, depth, and lifespan are displayed, but they are not treated as hard
+publisher/subscriber compatibility blockers.
+
+If an endpoint reports `system_default` or `unknown` for a policy, the tool does
+not guess the underlying RMW value. It reports the value and only diagnoses hard
+incompatibilities when the offered/requested policy values are explicit enough
+to compare.
 
 ## Planned Features
 
