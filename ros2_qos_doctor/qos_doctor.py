@@ -8,7 +8,7 @@ import rclpy
 
 from ros2_qos_doctor.compatibility import check_compatibility
 from ros2_qos_doctor.diagnosis import TopicDiagnosis, diagnose_all_topics
-from ros2_qos_doctor.endpoint_inspector import wait_for_topic_endpoints
+from ros2_qos_doctor.endpoint_inspector import topic_names_with_types, wait_for_topic_endpoints
 from ros2_qos_doctor.formatting import format_system_scan, format_topic_diagnosis
 from ros2_qos_doctor.json_output import diagnosis_to_dict, format_json, system_scan_to_dict
 
@@ -66,6 +66,15 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
         parser.error('provide exactly one of a topic name or --all')
     if args.show_compatible and not args.scan_all:
         parser.error('--show-compatible can only be used with --all')
+
+
+def get_topic_types(node: object, topic_name: str) -> list[str]:
+    return [
+        topic_type
+        for name, topic_types in topic_names_with_types(node)
+        if name == topic_name
+        for topic_type in topic_types
+    ]
 
 
 @contextmanager
@@ -130,7 +139,7 @@ def run(
                 report = check_compatibility(publishers, subscribers)
                 diagnosis = TopicDiagnosis(
                     topic_name=topic_name,
-                    topic_types=[],
+                    topic_types=get_topic_types(node, topic_name),
                     publishers=publishers,
                     subscribers=subscribers,
                     compatibility=report,

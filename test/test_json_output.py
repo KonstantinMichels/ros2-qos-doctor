@@ -167,3 +167,30 @@ def test_json_unknown_values_are_null_and_no_terminal_icons_are_present():
     assert '❌' not in output
     assert '✅' not in output
     assert '\x1b[' not in output
+
+
+def test_json_system_default_values_are_null():
+    data = diagnosis_to_dict(
+        diagnosis(
+            '/system_default',
+            [
+                EndpointQoS(
+                    node_name='talker',
+                    reliability='system_default',
+                    durability='system_default',
+                    history='system_default',
+                    liveliness='system_default',
+                )
+            ],
+            [],
+        ),
+        mode='single_topic',
+    )
+
+    parsed = parse_json(data)
+    qos = parsed['publishers'][0]['qos']
+
+    assert qos['reliability'] is None
+    assert qos['durability'] is None
+    assert qos['history'] is None
+    assert qos['liveliness'] is None

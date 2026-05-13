@@ -6,7 +6,7 @@ from ros2_qos_doctor.diagnosis import SystemScanResult, TopicDiagnosis
 
 
 def _none_if_unknown(value: Any) -> Any:
-    if value in ('unknown', None):
+    if value in ('unknown', 'system_default', None):
         return None
     return value
 

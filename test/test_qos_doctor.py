@@ -1,6 +1,6 @@
 import pytest
 
-from ros2_qos_doctor.qos_doctor import build_parser, validate_args
+from ros2_qos_doctor.qos_doctor import build_parser, get_topic_types, validate_args
 
 
 def test_parser_rejects_negative_timeout():
@@ -54,3 +54,16 @@ def test_parser_rejects_show_compatible_without_all():
 
     with pytest.raises(SystemExit):
         validate_args(parser, args)
+
+
+class FakeTopicNode:
+    def get_topic_names_and_types(self):
+        return [
+            ('/chatter', ['std_msgs/msg/String']),
+            ('/image', ['sensor_msgs/msg/Image']),
+        ]
+
+
+def test_get_topic_types_returns_types_for_single_topic_json():
+    assert get_topic_types(FakeTopicNode(), '/chatter') == ['std_msgs/msg/String']
+    assert get_topic_types(FakeTopicNode(), '/missing') == []
