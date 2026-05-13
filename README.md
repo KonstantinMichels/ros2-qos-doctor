@@ -86,6 +86,12 @@ Use the nodes in these pairs:
 | Reliability compatible | `reliable_publisher` | `best_effort_subscriber` | `/qos_demo/reliability_compatible` | Compatible |
 | Durability mismatch | `volatile_publisher` | `transient_local_subscriber` | `/qos_demo/durability` | Incompatible |
 | Durability compatible | `transient_local_publisher` | `volatile_subscriber` | `/qos_demo/durability_compatible` | Compatible |
+| Deadline mismatch | `deadline_mismatch_publisher` | `deadline_mismatch_subscriber` | `/qos_demo/deadline` | Incompatible |
+| Deadline compatible | `deadline_compatible_publisher` | `deadline_compatible_subscriber` | `/qos_demo/deadline_compatible` | Compatible |
+| Liveliness mismatch | `liveliness_mismatch_publisher` | `liveliness_mismatch_subscriber` | `/qos_demo/liveliness` | Incompatible |
+| Liveliness compatible | `liveliness_compatible_publisher` | `liveliness_compatible_subscriber` | `/qos_demo/liveliness_compatible` | Compatible |
+| Lease duration mismatch | `lease_mismatch_publisher` | `lease_mismatch_subscriber` | `/qos_demo/lease_duration` | Incompatible |
+| Lease duration compatible | `lease_compatible_publisher` | `lease_compatible_subscriber` | `/qos_demo/lease_duration_compatible` | Compatible |
 
 For example, `best_effort_publisher` and `best_effort_subscriber` are not a
 pair; they intentionally run on different topics for different demos.

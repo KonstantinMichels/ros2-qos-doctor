@@ -43,6 +43,54 @@ setup(
                 'ros2_qos_doctor.examples.transient_local_publisher:main'
             ),
             'volatile_subscriber = ros2_qos_doctor.examples.volatile_subscriber:main',
+            (
+                'deadline_mismatch_publisher = '
+                'ros2_qos_doctor.examples.deadline_mismatch_publisher:main'
+            ),
+            (
+                'deadline_mismatch_subscriber = '
+                'ros2_qos_doctor.examples.deadline_mismatch_subscriber:main'
+            ),
+            (
+                'deadline_compatible_publisher = '
+                'ros2_qos_doctor.examples.deadline_compatible_publisher:main'
+            ),
+            (
+                'deadline_compatible_subscriber = '
+                'ros2_qos_doctor.examples.deadline_compatible_subscriber:main'
+            ),
+            (
+                'liveliness_mismatch_publisher = '
+                'ros2_qos_doctor.examples.liveliness_mismatch_publisher:main'
+            ),
+            (
+                'liveliness_mismatch_subscriber = '
+                'ros2_qos_doctor.examples.liveliness_mismatch_subscriber:main'
+            ),
+            (
+                'liveliness_compatible_publisher = '
+                'ros2_qos_doctor.examples.liveliness_compatible_publisher:main'
+            ),
+            (
+                'liveliness_compatible_subscriber = '
+                'ros2_qos_doctor.examples.liveliness_compatible_subscriber:main'
+            ),
+            (
+                'lease_mismatch_publisher = '
+                'ros2_qos_doctor.examples.lease_mismatch_publisher:main'
+            ),
+            (
+                'lease_mismatch_subscriber = '
+                'ros2_qos_doctor.examples.lease_mismatch_subscriber:main'
+            ),
+            (
+                'lease_compatible_publisher = '
+                'ros2_qos_doctor.examples.lease_compatible_publisher:main'
+            ),
+            (
+                'lease_compatible_subscriber = '
+                'ros2_qos_doctor.examples.lease_compatible_subscriber:main'
+            ),
         ],
     },
 )
