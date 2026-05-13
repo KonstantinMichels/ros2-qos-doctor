@@ -36,6 +36,25 @@ Print a rosbag2 QoS override suggestion when an incompatibility is detected:
 ros2 run ros2_qos_doctor qos_doctor /tf --rosbag2-yaml
 ```
 
+Scan all visible topics and report only detected QoS problems:
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor --all
+```
+
+Also show topics without detected QoS problems:
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor --all --show-compatible
+```
+
+Print rosbag2 QoS override suggestions for incompatible topics found by a
+system scan:
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor --all --rosbag2-yaml
+```
+
 Run tests:
 
 ```bash
@@ -136,6 +155,67 @@ Expected `ros2-qos-doctor` result:
 ```text
 Compatibility:
   Compatible
+```
+
+## Scan All Topics
+
+Use `--all` to scan the current ROS graph and report topics with detected QoS
+incompatibilities:
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor --all
+```
+
+By default, compatible topics are hidden so the report stays focused. Add
+`--show-compatible` to include topics without detected QoS issues:
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor --all --show-compatible
+```
+
+Add `--rosbag2-yaml` to include suggested rosbag2 QoS override snippets for
+topics with detected incompatibilities:
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor --all --rosbag2-yaml
+```
+
+Example with the reliability mismatch demo:
+
+Terminal 1:
+
+```bash
+ros2 run ros2_qos_doctor best_effort_publisher
+```
+
+Terminal 2:
+
+```bash
+ros2 run ros2_qos_doctor reliable_subscriber
+```
+
+Terminal 3:
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor --all
+```
+
+Expected result:
+
+```text
+ros2-qos-doctor system scan
+
+Scanned topics: 3
+Topics with publishers and subscribers: 1
+Topics with QoS issues: 1
+
+❌ /qos_demo/reliability
+   Reliability mismatch:
+   Publisher /best_effort_publisher offers BEST_EFFORT
+   Subscriber /reliable_subscriber requests RELIABLE
+
+   Suggested fix:
+   Set the subscriber reliability to BEST_EFFORT.
 ```
 
 ### Durability Mismatch
@@ -258,7 +338,6 @@ Other QoS policies are displayed but not yet interpreted.
 
 ## Planned Features
 
-- `--all` system scan
 - JSON output
 - Better rosbag2 integration
 - Special handling for `/tf`, `/tf_static`, `/clock`, and sensor topics

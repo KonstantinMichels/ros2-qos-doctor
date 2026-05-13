@@ -1,6 +1,7 @@
 from typing import Iterable, List
 
-from ros2_qos_doctor.compatibility import CompatibilityReport, EndpointQoS
+from ros2_qos_doctor.compatibility import CompatibilityIssue, CompatibilityReport, EndpointQoS
+from ros2_qos_doctor.diagnosis import SystemScanResult, TopicDiagnosis
 from ros2_qos_doctor.explanations import problem_lines, suggested_fix_lines
 from ros2_qos_doctor.rosbag2_yaml import format_rosbag2_override_yaml
 
@@ -65,5 +66,133 @@ def format_report(
         if yaml_text:
             lines.extend(['', 'rosbag2 override suggestion:'])
             lines.extend(f'  {line}' for line in yaml_text.splitlines())
+
+    return '\n'.join(lines)
+
+
+def format_topic_diagnosis(
+    diagnosis: TopicDiagnosis,
+    include_rosbag2_yaml: bool = False,
+) -> str:
+    return format_report(
+        diagnosis.topic_name,
+        diagnosis.publishers,
+        diagnosis.subscribers,
+        diagnosis.compatibility,
+        include_rosbag2_yaml=include_rosbag2_yaml,
+    )
+
+
+def _policy_label(policy: str) -> str:
+    return policy.replace('_', ' ').title()
+
+
+def _policy_value(value: str) -> str:
+    return value.upper()
+
+
+def _issue_detail_lines(issue: CompatibilityIssue) -> List[str]:
+    if issue.policy == 'reliability':
+        return [
+            '   Reliability mismatch:',
+            (
+                f'   Publisher {issue.publisher.full_node_name} offers '
+                f'{_policy_value(issue.publisher.reliability)}'
+            ),
+            (
+                f'   Subscriber {issue.subscriber.full_node_name} requests '
+                f'{_policy_value(issue.subscriber.reliability)}'
+            ),
+        ]
+    if issue.policy == 'durability':
+        return [
+            '   Durability mismatch:',
+            (
+                f'   Publisher {issue.publisher.full_node_name} offers '
+                f'{_policy_value(issue.publisher.durability)}'
+            ),
+            (
+                f'   Subscriber {issue.subscriber.full_node_name} requests '
+                f'{_policy_value(issue.subscriber.durability)}'
+            ),
+        ]
+
+    return [f'   {_policy_label(issue.policy)} mismatch:', f'   {issue.message}']
+
+
+def _format_issue_topic(diagnosis: TopicDiagnosis) -> List[str]:
+    lines = [f'❌ {diagnosis.topic_name}']
+    for index, issue in enumerate(diagnosis.compatibility.issues):
+        if index:
+            lines.append('')
+        lines.extend(_issue_detail_lines(issue))
+        lines.extend(['', '   Suggested fix:', f'   {issue.suggested_fix}'])
+    return lines
+
+
+def _format_rosbag2_yaml_for_scan(diagnosis: TopicDiagnosis) -> List[str]:
+    yaml_text = format_rosbag2_override_yaml(
+        diagnosis.topic_name,
+        diagnosis.compatibility.issues,
+    )
+    if not yaml_text:
+        return []
+
+    lines = ['', '   rosbag2 override suggestion:']
+    lines.extend(f'   {line}' for line in yaml_text.splitlines())
+    return lines
+
+
+def _format_compatible_topic(diagnosis: TopicDiagnosis) -> List[str]:
+    lines = [f'✅ {diagnosis.topic_name}']
+    if not diagnosis.publishers:
+        lines.append('   No publishers found.')
+    elif not diagnosis.subscribers:
+        lines.append('   No subscribers found.')
+    else:
+        lines.append('   Compatible publisher/subscriber QoS pairs found.')
+    return lines
+
+
+def format_system_scan(
+    scan_result: SystemScanResult,
+    show_compatible: bool = False,
+    include_rosbag2_yaml: bool = False,
+) -> str:
+    lines: List[str] = [
+        'ros2-qos-doctor system scan',
+        '',
+        f'Scanned topics: {scan_result.scanned_topic_count}',
+        (
+            'Topics with publishers and subscribers: '
+            f'{scan_result.topics_with_publishers_and_subscribers_count}'
+        ),
+        f'Topics with QoS issues: {scan_result.topics_with_issues_count}',
+        '',
+    ]
+
+    issue_diagnoses = [
+        diagnosis for diagnosis in scan_result.diagnoses
+        if diagnosis.has_issues
+    ]
+
+    if not issue_diagnoses:
+        lines.append('✅ No QoS incompatibilities detected.')
+    else:
+        for index, diagnosis in enumerate(issue_diagnoses):
+            if index:
+                lines.append('')
+            lines.extend(_format_issue_topic(diagnosis))
+            if include_rosbag2_yaml:
+                lines.extend(_format_rosbag2_yaml_for_scan(diagnosis))
+
+    if show_compatible:
+        compatible_diagnoses = [
+            diagnosis for diagnosis in scan_result.diagnoses
+            if not diagnosis.has_issues
+        ]
+        for diagnosis in compatible_diagnoses:
+            lines.append('')
+            lines.extend(_format_compatible_topic(diagnosis))
 
     return '\n'.join(lines)
