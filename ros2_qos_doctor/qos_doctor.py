@@ -1,6 +1,8 @@
 import argparse
+from contextlib import contextmanager
+import os
 import sys
-from typing import Optional, Sequence
+from typing import Iterator, Optional, Sequence
 
 import rclpy
 
@@ -8,6 +10,7 @@ from ros2_qos_doctor.compatibility import check_compatibility
 from ros2_qos_doctor.diagnosis import TopicDiagnosis, diagnose_all_topics
 from ros2_qos_doctor.endpoint_inspector import wait_for_topic_endpoints
 from ros2_qos_doctor.formatting import format_system_scan, format_topic_diagnosis
+from ros2_qos_doctor.json_output import diagnosis_to_dict, format_json, system_scan_to_dict
 
 
 def non_negative_float(value: str) -> float:
@@ -44,6 +47,12 @@ def build_parser() -> argparse.ArgumentParser:
         help='Print a suggested rosbag2 QoS override YAML snippet when possible.',
     )
     parser.add_argument(
+        '--json',
+        action='store_true',
+        dest='json_output',
+        help='Print machine-readable JSON instead of human-readable text.',
+    )
+    parser.add_argument(
         '--timeout',
         type=non_negative_float,
         default=2.0,
@@ -59,54 +68,89 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
         parser.error('--show-compatible can only be used with --all')
 
 
+@contextmanager
+def suppress_process_output(enabled: bool) -> Iterator[None]:
+    if not enabled:
+        yield
+        return
+
+    stdout_fd = os.dup(1)
+    stderr_fd = os.dup(2)
+    devnull_fd = os.open(os.devnull, os.O_WRONLY)
+    try:
+        os.dup2(devnull_fd, 1)
+        os.dup2(devnull_fd, 2)
+        yield
+    finally:
+        os.dup2(stdout_fd, 1)
+        os.dup2(stderr_fd, 2)
+        os.close(stdout_fd)
+        os.close(stderr_fd)
+        os.close(devnull_fd)
+
+
 def run(
     topic_name: Optional[str] = None,
     include_rosbag2_yaml: bool = False,
+    json_output: bool = False,
     timeout_sec: float = 2.0,
     scan_all: bool = False,
     show_compatible: bool = False,
 ) -> int:
-    rclpy.init(args=None)
-    node = None
-    try:
-        node = rclpy.create_node('_ros2_qos_doctor_inspector')
-        if scan_all:
-            scan_result = diagnose_all_topics(node, discovery_timeout_sec=timeout_sec)
-            print(
-                format_system_scan(
-                    scan_result,
-                    show_compatible=show_compatible,
-                    include_rosbag2_yaml=include_rosbag2_yaml,
+    output_text = ''
+    with suppress_process_output(json_output):
+        rclpy.init(args=None)
+        node = None
+        try:
+            node = rclpy.create_node('_ros2_qos_doctor_inspector')
+            if scan_all:
+                scan_result = diagnose_all_topics(node, discovery_timeout_sec=timeout_sec)
+                if json_output:
+                    output_text = format_json(
+                        system_scan_to_dict(
+                            scan_result,
+                            show_compatible=show_compatible,
+                        )
+                    )
+                else:
+                    output_text = format_system_scan(
+                        scan_result,
+                        show_compatible=show_compatible,
+                        include_rosbag2_yaml=include_rosbag2_yaml,
+                    )
+            else:
+                if topic_name is None:
+                    raise ValueError('topic_name is required unless scan_all is true')
+
+                publishers, subscribers = wait_for_topic_endpoints(
+                    node,
+                    topic_name,
+                    timeout_sec=timeout_sec,
                 )
-            )
-            return 0
-
-        if topic_name is None:
-            raise ValueError('topic_name is required unless scan_all is true')
-
-        publishers, subscribers = wait_for_topic_endpoints(
-            node,
-            topic_name,
-            timeout_sec=timeout_sec,
-        )
-        report = check_compatibility(publishers, subscribers)
-        print(
-            format_topic_diagnosis(
-                TopicDiagnosis(
+                report = check_compatibility(publishers, subscribers)
+                diagnosis = TopicDiagnosis(
                     topic_name=topic_name,
                     topic_types=[],
                     publishers=publishers,
                     subscribers=subscribers,
                     compatibility=report,
-                ),
-                include_rosbag2_yaml=include_rosbag2_yaml,
-            )
-        )
-        return 0
-    finally:
-        if node is not None:
-            node.destroy_node()
-        rclpy.shutdown()
+                )
+                if json_output:
+                    output_text = format_json(
+                        diagnosis_to_dict(diagnosis, mode='single_topic')
+                    )
+                else:
+                    output_text = format_topic_diagnosis(
+                        diagnosis,
+                        include_rosbag2_yaml=include_rosbag2_yaml,
+                    )
+        finally:
+            if node is not None:
+                node.destroy_node()
+            rclpy.shutdown()
+
+    print(output_text)
+    return 0
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -116,6 +160,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     return run(
         args.topic_name,
         include_rosbag2_yaml=args.rosbag2_yaml,
+        json_output=args.json_output,
         timeout_sec=args.timeout,
         scan_all=args.scan_all,
         show_compatible=args.show_compatible,

@@ -55,6 +55,16 @@ system scan:
 ros2 run ros2_qos_doctor qos_doctor --all --rosbag2-yaml
 ```
 
+Print a machine-readable diagnostic report:
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor /tf --json
+```
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor --all --json
+```
+
 Run tests:
 
 ```bash
@@ -285,6 +295,40 @@ Expected `ros2-qos-doctor` result:
 Compatibility:
   Compatible
 ```
+
+## JSON Output
+
+Use `--json` to print a machine-readable diagnostic report instead of the
+terminal-oriented text output:
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor /qos_demo/reliability --json
+```
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor --all --json
+```
+
+JSON output is intended for CI checks, scripts, automated reports, future UI
+integrations, and integration with recorder or monitoring systems.
+
+In all-topics mode, JSON follows the same filtering behavior as the text
+report:
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor --all --json
+```
+
+reports only topics with detected QoS issues, while:
+
+```bash
+ros2 run ros2_qos_doctor qos_doctor --all --show-compatible --json
+```
+
+also includes compatible topics and topics without both endpoint kinds.
+
+`--rosbag2-yaml` is for generating QoS override configuration snippets.
+`--json` is a machine-readable diagnostic report, not a QoS override config.
 
 ## Example Output
 
